@@ -9,6 +9,9 @@ Some prerequisites in using the script
 - webdriver_manager is installed (pip install webdriver_manager)
 - An IDE
 
+To use the script, run the following command in your terminal:
+pip install -r requirements.txt
+
 Ideas to add:
 
 - Scheduler for script (For now using Task Scheduler in windows)
