@@ -5,10 +5,11 @@ Some prerequisites in using the script
 
 - Python is installed (pip install python)
 - Selenium is installed (pip install selenium)
+- yaml is installed (pip install pyyaml)
 - An IDE
 
 Ideas to add:
 
-- Scheduler for script
-- More easy usage
+- Scheduler for script (For now using Task Scheduler in windows)
+- More customizations
 - Integrated with extensions or an apk
