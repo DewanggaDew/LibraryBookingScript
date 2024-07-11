@@ -6,6 +6,7 @@ Some prerequisites in using the script
 - Python is installed (pip install python)
 - Selenium is installed (pip install selenium)
 - yaml is installed (pip install pyyaml)
+- webdriver_manager is installed (pip install webdriver_manager)
 - An IDE
 
 Ideas to add:
