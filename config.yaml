@@ -1,22 +1,28 @@
 booking_url: "https://spaces.xmu.edu.my/"
-headless: false
+
+#true for the web browser to not open, false to make the browser open
+headless: true
 location: "A3 Main Library"
-room_category: "Group Discussion Room"
-days_ahead: 3
+
+#Change the room category
+room_category: "Silent Study Room"
+
+#Recommended to have 2 days ahead and run the script everyday, to book the script everyday
+days_ahead: 2
+
+#Change desired booking time
 desired_time_slot: "15:00 - 17:00"
+
+#Change to your own username
 username: "username"
+
+#Change to your own password
 password: "password"
 
 location_dropdown_xpath: "/html/body/div[2]/div[2]/form/div/div[1]/div/select"
 room_category_dropdown_xpath: "/html/body/div[2]/div[2]/form/div/div[2]/div[2]/div/div/select"
 check_availability_button_xpath: "/html/body/div[2]/div[2]/form/div/div[3]/div/div[2]/button"
-desired_time_slot_xpath: "/html/body/div[2]/div/div[2]/div/div[1]/div/div[3]/div/div[4]/button" #Change XPath for different time and room
 confirm_button_xpath: "/html/body/div[3]/div/div[6]/button[1]"
 username_field_xpath: "/html/body/div[2]/div/form/div/div[1]/div/input"
 password_field_xpath: "/html/body/div[2]/div/form/div/div[2]/div/input"
 login_button_xpath: "/html/body/div[2]/div/form/div/div[3]/div/div/button"
-
-email:
-  sender: ""
-  recipient: ""
-  password: ""
