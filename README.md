@@ -55,6 +55,12 @@ password: "password"
 
 ```
 
+## Automating
+
+To be automate running the script, take advantage of Task Scheduler built in for Windows. Take some time to learn how to set up triggers and run the actual script.
+
+Here is a great guide on how to do it: https://www.jcchouinard.com/python-automation-using-task-scheduler/
+
 ## Contributing
 
 Contributions are always welcome!
