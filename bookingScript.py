@@ -43,7 +43,8 @@ def run_booking_script():
 
     try:
         service = Service(
-            executable_path=r"C:\Users\lenovo\Downloads\chromedriver-win64\chromedriver.exe"
+            # Change the path to your own chromedrive path location
+            executable_path=r"C:\Users\%USERNAME%\Downloads\chromedriver-win64\chromedriver.exe"
         )
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
