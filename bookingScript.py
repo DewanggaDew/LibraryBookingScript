@@ -12,7 +12,11 @@ from selenium.webdriver.common.action_chains import ActionChains
 import datetime
 import smtplib
 import time
-from email.message import EmailMessage
+from selenium.common.exceptions import (
+    TimeoutException,
+    ElementClickInterceptedException,
+    NoSuchElementException,
+)
 
 
 logging.basicConfig(
@@ -31,23 +35,6 @@ def load_config():
         raise
 
 
-def send_email(subject, body):
-    config = load_config()
-    msg = EmailMessage()
-    msg.set_content(body)
-    msg["Subject"] = subject
-    msg["From"] = config["email"]["sender"]
-    msg["To"] = config["email"]["recipient"]
-
-    try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(config["email"]["sender"], config["email"]["password"])
-            smtp.send_message(msg)
-        logging.info(f"Email sent: {subject}")
-    except Exception as e:
-        logging.error(f"Error sending email: {str(e)}")
-
-
 def run_booking_script():
     config = load_config()
     chrome_options = Options()
@@ -55,7 +42,9 @@ def run_booking_script():
         chrome_options.add_argument("--headless")
 
     try:
-        service = Service(ChromeDriverManager().install())
+        service = Service(
+            executable_path=r"C:\Users\lenovo\Downloads\chromedriver-win64\chromedriver.exe"
+        )
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
         driver.get(config["booking_url"])
@@ -126,19 +115,65 @@ def run_booking_script():
         # Wait for the availability to load
         time.sleep(5)
 
-        # Select the desired time slot
-        desired_time_slot = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.XPATH, config["desired_time_slot_xpath"]))
-        )
-        desired_time_slot.click()
-        logging.info(f"Selected time slot: {config['desired_time_slot']}")
+        # Define the base XPath for rooms
+        base_xpath = "/html/body/div[2]/div/div[2]/div/div"
 
-        # Confirm the booking
-        confirm_button = WebDriverWait(driver, 20).until(
-            EC.element_to_be_clickable((By.XPATH, config["confirm_button_xpath"]))
-        )
-        confirm_button.click()
-        logging.info("Confirmed booking")
+        room_booked = False
+        desired_time_slot = config["desired_time_slot"]
+        time_slot_index = {
+            "09:00 - 11:00": 1,
+            "11:00 - 13:00": 2,
+            "13:00 - 15:00": 3,
+            "15:00 - 17:00": 4,
+            "17:00 - 19:00": 5,
+            "19:00 - 21:00": 6,
+        }
+
+        for room_index in range(1, 7):  # Assuming there are 6 rooms
+            try:
+                room_xpath = f"{base_xpath}[{room_index}]"
+                room_name = driver.find_element(
+                    By.XPATH, f"{room_xpath}/div/div[2]"
+                ).text
+                button_xpath = f"{room_xpath}/div/div[3]/div/div[{time_slot_index[desired_time_slot]}]/button"
+
+                time_slot_button = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, button_xpath))
+                )
+
+                if time_slot_button.is_enabled():
+                    time_slot_button.click()
+                    logging.info(
+                        f"Selected time slot {desired_time_slot} in room {room_name}"
+                    )
+
+                    # Confirm the booking
+                    confirm_button = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable(
+                            (By.XPATH, config["confirm_button_xpath"])
+                        )
+                    )
+                    confirm_button.click()
+                    logging.info("Confirmed booking")
+
+                    room_booked = True
+                    break  # Exit the loop if a room is successfully booked
+                else:
+                    logging.info(
+                        f"Time slot {desired_time_slot} not available in room {room_name}"
+                    )
+            except (
+                TimeoutException,
+                ElementClickInterceptedException,
+                NoSuchElementException,
+            ) as e:
+                logging.info(f"Failed to book room {room_index}: {str(e)}")
+                continue
+
+        if not room_booked:
+            raise Exception(
+                f"No available rooms found for the desired time slot: {desired_time_slot}"
+            )
 
         # Wait for the login page to load
         time.sleep(5)
@@ -159,11 +194,9 @@ def run_booking_script():
         time.sleep(5)
 
         logging.info("Room booked successfully.")
-        send_email("Room Booking Successful", f"Room booked for {booking_date}")
 
     except Exception as e:
         logging.error(f"An error occurred: {str(e)}")
-        send_email("Room Booking Failed", f"Error: {str(e)}")
     finally:
         driver.quit()
 
@@ -173,4 +206,3 @@ if __name__ == "__main__":
         run_booking_script()
     except Exception as e:
         logging.error(f"Unhandled exception: {str(e)}")
-        send_email("Room Booking Script Failed", f"Unhandled error: {str(e)}")
