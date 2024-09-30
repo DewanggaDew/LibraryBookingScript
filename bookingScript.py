@@ -41,13 +41,12 @@ def run_booking_script():
     if config["headless"]:
         chrome_options.add_argument("--headless")
 
-    try:
-        service = Service(
-            # Change the path to your own chromedrive path location
-            executable_path=r"C:\Users\%USERNAME%\Downloads\chromedriver-win64\chromedriver.exe"
-        )
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
 
+    service = Service(ChromeDriverManager(chrome_type=ChromeType.GOOGLE).install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    try:
         driver.get(config["booking_url"])
         logging.info("Opened booking website")
 

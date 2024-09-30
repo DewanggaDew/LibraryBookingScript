@@ -27,4 +27,4 @@ jobs:
           CONFIG: ${{ secrets.CONFIG_YAML }}
         run: |
           echo "$CONFIG" > config.yaml
-          python book_room.py
+          python bookingScript.py
