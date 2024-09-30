@@ -1,0 +1,30 @@
+name: Book Library Room
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # Runs at 8 AM UTC daily
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  book-room:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.9"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Install Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+      - name: Run booking script
+        env:
+          CONFIG: ${{ secrets.CONFIG_YAML }}
+        run: |
+          echo "$CONFIG" > config.yaml
+          python book_room.py
