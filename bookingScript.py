@@ -17,12 +17,15 @@ from selenium.common.exceptions import (
     ElementClickInterceptedException,
     NoSuchElementException,
 )
-import os
 
 
 def load_config():
-    config_yaml = os.environ.get("CONFIG")
-    return yaml.safe_load(config_yaml)
+    try:
+        with open("config.yaml", "r") as file:
+            return yaml.safe_load(file)
+    except Exception as e:
+        logging.error(f"Error loading configuration: {str(e)}")
+        raise
 
 
 def select_available_date(driver, preferred_days_ahead=2):
@@ -131,11 +134,52 @@ def retry_date_selection(driver, preferred_days_ahead=2, max_attempts=3):
     raise Exception(f"Failed to select date after {max_attempts} attempts")
 
 
+# logging.basicConfig(
+#    filename="booking_log.txt",
+#    level=logging.INFO,
+#    format="%(asctime)s - %(levelname)s - %(message)s",
+# )
+
+
 logging.basicConfig(
-    filename="booking_log.txt",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+
+def setup_driver():
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--window-size=1920,1080")
+
+    if os.getenv("GITHUB_ACTIONS"):
+        # Running in GitHub Actions
+        chrome_options.binary_location = "/usr/bin/google-chrome"
+        service = Service("/usr/local/share/chrome_driver/chromedriver")
+    else:
+        # Running locally
+        service = Service(
+            r"C:\Users\lenovo\Downloads\chromedriver-win64\chromedriver.exe"
+        )
+
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+    return driver
+
+
+def load_config():
+    try:
+        if os.getenv("GITHUB_ACTIONS"):
+            # In GitHub Actions, config is loaded from environment
+            config_str = os.getenv("CONFIG")
+            return yaml.safe_load(config_str)
+        else:
+            # Locally, load from file
+            with open("config.yaml", "r") as file:
+                return yaml.safe_load(file)
+    except Exception as e:
+        logging.error(f"Error loading configuration: {str(e)}")
+        raise
 
 
 def verify_form_before_submission(driver, config):
@@ -169,19 +213,8 @@ def verify_form_before_submission(driver, config):
 
 def run_booking_script():
     config = load_config()
-    chrome_options = Options()
-
-    # Use the headless setting from config
-    if config["headless"]:
-        chrome_options.add_argument("--headless")
-
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-
-    service = Service(ChromeDriverManager(chrome_type=ChromeType.GOOGLE).install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = setup_driver()
     try:
-
         driver.get(config["booking_url"])
         logging.info("Opened booking website")
 
