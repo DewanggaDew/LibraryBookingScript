@@ -22,21 +22,32 @@ jobs:
         python -m pip install --upgrade pip
         pip install selenium pyyaml webdriver_manager
     
-    - name: Install Chrome and ChromeDriver
+    - name: Setup Chrome
+      uses: browser-actions/setup-chrome@v1
+    
+    - name: Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+    
+    - name: Display Chrome and ChromeDriver versions
       run: |
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable
-        CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | awk -F'.' '{print $1}')
-        CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION")
-        curl -L -o chromedriver.zip "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
-        sudo unzip chromedriver.zip -d /usr/local/share/chrome_driver/
-        sudo chmod +x /usr/local/share/chrome_driver/chromedriver
+        google-chrome --version
+        chromedriver --version
     
     - name: Run booking script
       env:
         CONFIG: ${{ secrets.CONFIG_YAML }}
       run: |
+        # Start the ChromeDriver
+        chromedriver --version
+        google-chrome --version
+        
+        # Run your script
         python bookingScript.py
+    
+    - name: Upload screenshots
+      if: always()
+      uses: actions/upload-artifact@v2
+      with:
         name: screenshots
         path: |
           *.png
