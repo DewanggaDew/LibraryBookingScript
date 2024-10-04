@@ -11,7 +11,7 @@ room_category: "Silent Study Room"
 days_ahead: 2
 
 #Change desired booking time
-desired_time_slot: "15:00 - 17:00"
+desired_time_slot: "09:00 - 11:00"
 
 #Change to your own username
 username: "username"

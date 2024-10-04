@@ -17,15 +17,12 @@ from selenium.common.exceptions import (
     ElementClickInterceptedException,
     NoSuchElementException,
 )
+import os
 
 
 def load_config():
-    try:
-        with open("config.yaml", "r") as file:
-            return yaml.safe_load(file)
-    except Exception as e:
-        logging.error(f"Error loading configuration: {str(e)}")
-        raise
+    config_yaml = os.environ.get("CONFIG")
+    return yaml.safe_load(config_yaml)
 
 
 def select_available_date(driver, preferred_days_ahead=2):
@@ -173,15 +170,17 @@ def verify_form_before_submission(driver, config):
 def run_booking_script():
     config = load_config()
     chrome_options = Options()
+
+    # Use the headless setting from config
     if config["headless"]:
         chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--start-maximized")
 
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    service = Service(ChromeDriverManager(chrome_type=ChromeType.GOOGLE).install())
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     try:
-        service = Service(
-            r"C:\Users\lenovo\Downloads\chromedriver-win64\chromedriver.exe"
-        )
-        driver = webdriver.Chrome(service=service, options=chrome_options)
 
         driver.get(config["booking_url"])
         logging.info("Opened booking website")
