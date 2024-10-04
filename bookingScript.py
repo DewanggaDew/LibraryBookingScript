@@ -19,13 +19,6 @@ from selenium.common.exceptions import (
 )
 
 
-logging.basicConfig(
-    filename="booking_log.txt",
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
-
 def load_config():
     try:
         with open("config.yaml", "r") as file:
@@ -35,22 +28,165 @@ def load_config():
         raise
 
 
+def select_available_date(driver, preferred_days_ahead=2):
+    try:
+        logging.info(
+            f"Attempting to select an available date, preferring {preferred_days_ahead} days ahead"
+        )
+
+        # Click the date field to open the calendar
+        input_fields = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "input_field"))
+        )
+        if len(input_fields) >= 2:
+            date_container = input_fields[1]
+            driver.execute_script("arguments[0].scrollIntoView(true);", date_container)
+            time.sleep(1)
+            date_container.click()
+        else:
+            raise Exception("Could not find date input field")
+
+        # Wait for calendar to appear
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "flatpickr-calendar"))
+        )
+
+        # Find all available dates
+        available_dates = driver.find_elements(
+            By.XPATH,
+            "//span[contains(@class, 'flatpickr-day') and not(contains(@class, 'flatpickr-disabled'))]",
+        )
+
+        if not available_dates:
+            raise Exception("No available dates found")
+
+        # Log available dates for debugging
+        available_dates_info = [
+            f"{date.get_attribute('aria-label')}: {date.text}"
+            for date in available_dates
+        ]
+        logging.info(f"Available dates: {available_dates_info}")
+
+        # Try to select the preferred date first
+        target_date = None
+        for date in available_dates:
+            days_ahead = 0
+            if "today" in date.get_attribute("class"):
+                days_ahead = 0
+            else:
+                try:
+                    date_text = date.get_attribute("aria-label")
+                    date_obj = datetime.datetime.strptime(date_text, "%B %d, %Y").date()
+                    today = datetime.date.today()
+                    days_ahead = (date_obj - today).days
+                except ValueError:
+                    continue
+
+            if days_ahead == preferred_days_ahead:
+                target_date = date
+                break
+
+        # If preferred date not available, select the latest available date
+        if target_date is None and available_dates:
+            target_date = available_dates[-1]
+
+        if target_date is None:
+            raise Exception("Could not select any date")
+
+        # Get the date information before clicking
+        selected_date_text = target_date.get_attribute("aria-label")
+        selected_date_obj = datetime.datetime.strptime(
+            selected_date_text, "%B %d, %Y"
+        ).date()
+
+        # Click the selected date
+        driver.execute_script("arguments[0].click();", target_date)
+        logging.info(f"Clicked on date: {selected_date_text}")
+
+        # Wait for the calendar to close
+        time.sleep(1)
+
+        # No need to verify the input field value, just return success
+        logging.info(
+            f"Successfully selected date: {selected_date_obj.strftime('%d-%m-%Y')}"
+        )
+        return True
+
+    except Exception as e:
+        logging.error(f"Date selection failed: {str(e)}")
+        driver.save_screenshot("date_selection_error.png")
+        raise
+
+
+# Update the retry function to be simpler since we're not verifying the input value
+def retry_date_selection(driver, preferred_days_ahead=2, max_attempts=3):
+    for attempt in range(max_attempts):
+        try:
+            if select_available_date(driver, preferred_days_ahead):
+                return True
+        except Exception as e:
+            logging.warning(f"Date selection failed on attempt {attempt + 1}: {str(e)}")
+
+        if attempt < max_attempts - 1:
+            logging.info(f"Retrying date selection... ({attempt + 2}/{max_attempts})")
+            time.sleep(2)
+
+    raise Exception(f"Failed to select date after {max_attempts} attempts")
+
+
+logging.basicConfig(
+    filename="booking_log.txt",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+
+def verify_form_before_submission(driver, config):
+    try:
+        # Verify location
+        location_dropdown = Select(
+            driver.find_element(By.XPATH, config["location_dropdown_xpath"])
+        )
+        selected_location = location_dropdown.first_selected_option.text
+        if selected_location != config["location"]:
+            raise Exception(
+                f"Location mismatch. Expected: {config['location']}, Got: {selected_location}"
+            )
+
+        # Verify room category
+        room_category_dropdown = Select(
+            driver.find_element(By.XPATH, config["room_category_dropdown_xpath"])
+        )
+        selected_category = room_category_dropdown.first_selected_option.text
+        if selected_category != config["room_category"]:
+            raise Exception(
+                f"Room category mismatch. Expected: {config['room_category']}, Got: {selected_category}"
+            )
+
+        logging.info("Form verification passed")
+        return True
+    except Exception as e:
+        logging.error(f"Form verification failed: {str(e)}")
+        return False
+
+
 def run_booking_script():
     config = load_config()
     chrome_options = Options()
     if config["headless"]:
         chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--start-maximized")
 
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-
-    service = Service(ChromeDriverManager(chrome_type=ChromeType.GOOGLE).install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
     try:
+        service = Service(
+            r"C:\Users\lenovo\Downloads\chromedriver-win64\chromedriver.exe"
+        )
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+
         driver.get(config["booking_url"])
         logging.info("Opened booking website")
 
-        # Wait for the location dropdown to be present
+        # Select location
         location_dropdown = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located(
                 (By.XPATH, config["location_dropdown_xpath"])
@@ -60,7 +196,7 @@ def run_booking_script():
         location_select.select_by_visible_text(config["location"])
         logging.info(f"Selected location: {config['location']}")
 
-        # Wait for the room category dropdown to be present
+        # Select room category
         room_category_dropdown = WebDriverWait(driver, 20).until(
             EC.presence_of_element_located(
                 (By.XPATH, config["room_category_dropdown_xpath"])
@@ -70,38 +206,11 @@ def run_booking_script():
         room_category_select.select_by_visible_text(config["room_category"])
         logging.info(f"Selected room category: {config['room_category']}")
 
-        # Interact with the date picker
-        booking_date_field = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.ID, "booking_date"))
-        )
-        booking_date_field.click()
+        # Select date
+        retry_date_selection(driver, config["days_ahead"])
 
-        # Get the date specified in config (e.g., 2 days from now)
-        target_date = datetime.date.today() + datetime.timedelta(
-            days=config["days_ahead"]
-        )
-        booking_date = target_date.strftime("%Y-%m-%d")
-        logging.info(f"Booking date: {booking_date}")
-
-        day = str(target_date.day)
-
-        WebDriverWait(driver, 10).until(
-            EC.visibility_of_element_located((By.XPATH, "/html/body/div[3]/div[2]"))
-        )
-
-        # Click on the correct day
-        try:
-            day_element = WebDriverWait(driver, 20).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, f"/html/body/div[3]/div[2]/div/div[2]/div/span[{day}]")
-                )
-            )
-            ActionChains(driver).move_to_element(day_element).click().perform()
-        except Exception as e:
-            logging.error(f"Failed to click on day {day}. Error: {str(e)}")
-            driver.execute_script("arguments[0].click();", day_element)
-
-        time.sleep(1)
+        if not verify_form_before_submission(driver, config):
+            raise Exception("Form verification failed")
 
         # Click the Check Availability button
         check_availability_button = WebDriverWait(driver, 20).until(
@@ -113,11 +222,10 @@ def run_booking_script():
         logging.info("Clicked Check Availability button")
 
         # Wait for the availability to load
-        time.sleep(5)
+        time.sleep(2)
 
-        # Define the base XPath for rooms
+        # Book a room
         base_xpath = "/html/body/div[2]/div/div[2]/div/div"
-
         room_booked = False
         desired_time_slot = config["desired_time_slot"]
         time_slot_index = {
@@ -157,7 +265,7 @@ def run_booking_script():
                     logging.info("Confirmed booking")
 
                     room_booked = True
-                    break  # Exit the loop if a room is successfully booked
+                    break
                 else:
                     logging.info(
                         f"Time slot {desired_time_slot} not available in room {room_name}"
@@ -176,7 +284,7 @@ def run_booking_script():
             )
 
         # Wait for the login page to load
-        time.sleep(5)
+        time.sleep(2)
 
         # Log in to the website
         WebDriverWait(driver, 20).until(
