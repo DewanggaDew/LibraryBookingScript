@@ -1,0 +1,43 @@
+name: Book Library Room
+
+on:
+  schedule:
+    - cron: "1 16 * * *"  # Runs at 16:01 UTC daily
+  workflow_dispatch:      # Allows manual triggering
+
+jobs:
+  book-room:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.9"
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install selenium pyyaml webdriver_manager
+    
+    - name: Install Chrome and ChromeDriver
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        CHROME_VERSION=$(google-chrome --version | awk '{print $3}' | awk -F'.' '{print $1}')
+        CHROMEDRIVER_VERSION=$(curl -s "https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION")
+        curl -L -o chromedriver.zip "https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip"
+        sudo unzip chromedriver.zip -d /usr/local/share/chrome_driver/
+        sudo chmod +x /usr/local/share/chrome_driver/chromedriver
+    
+    - name: Run booking script
+      env:
+        CONFIG: ${{ secrets.CONFIG_YAML }}
+      run: |
+        python bookingScript.py
+        name: screenshots
+        path: |
+          *.png
+          booking_log.txt
