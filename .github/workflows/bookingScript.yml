@@ -2,7 +2,7 @@ name: Book Library Room
 
 on:
   schedule:
-    - cron: "1 16 * * *" # Runs at 8 AM UTC daily
+    - cron: "1 16 * * *" # Runs at 12 AM UTC daily
   workflow_dispatch: # Allows manual triggering
 
 jobs:
